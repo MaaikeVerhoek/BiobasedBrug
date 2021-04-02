@@ -9,14 +9,13 @@ class CleaningData:
         selection: str, part of the datafile that indicates the month
         """
         self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
-        return self.raw_data
     
     def preprocessing_pipeline(self):
         opz = format_data(self.raw_data)
         cld = clean_data(opz)
-        return opz
+        return cld
         
-    def format_data(self, raw_data=self.raw_data):
+    def format_data(self, raw_data):
         """ Takes the raw data and changes it to the right formats
         """
         opz = raw_data
