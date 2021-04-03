@@ -1,9 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
+from config import *
 
 class CleaningData:
-    def __init__(self, location="../../Brug/Rauwe data/", selection='202006'):
+    def __init__(self, location=PATH, selection='202006'):
         """ Loads the data
         location: str, (relative) path to the datafolder
         selection: str, part of the datafile that indicates the month

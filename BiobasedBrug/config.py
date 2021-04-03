@@ -1,0 +1,1 @@
+PATH = "../../Brug/Rauwe data/"
