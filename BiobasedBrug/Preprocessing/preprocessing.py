@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import pdb
 from config import *
 
 class PrepareDataset:
@@ -18,18 +19,21 @@ class PrepareDataset:
         else:
             self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
             
-        self.all_meteo_data=pd.read_csv(f"{location}{METEO}",sep=";",header=[0],skiprows=[1])
+        self.all_meteo_data = pd.read_csv(f"{location}{METEO}",sep=";",header=[0],skiprows=[1], dtype='unicode')
     
     def preprocessing_pipeline(self):
         opz = self.format_data(self.raw_data)
-        
         cld = self.clean_data(opz)
-        return cld
+        [start, end] = self._get_start_and_enddate(cld)
+        meteo = self.filter_meteo_data(start, end)
+        meteo = self.clean_meteo_data(meteo)
+        momenten = self.determine_moments(cld)
+        return {'momenten': momenten, 'meteo': meteo}
         
     def format_data(self, raw_data):
         """ Takes the raw data and changes it to the right formats
         """
-        opz = raw_data
+        opz = raw_data.copy()
         opz['datetime'] = pd.to_datetime(opz['Datum-tijd'], format='%Y-%m-%dT%H:%M:%SZ')
         opz.drop(['Datum-tijd'],axis=1, inplace=True)
         opz['dag']=opz['datetime'].dt.day
@@ -45,6 +49,7 @@ class PrepareDataset:
         """ Cleans data by deleting mistakes
             Hier mist nog wat: er word nog niks gedaan met nans
         """
+#         pdb.set_trace()
         mask = (opz['Opzetstuk Noord (°)']<-1) | (opz['Opzetstuk Noord (°)']>100)
         opz = opz.drop(opz.loc[mask].index)
         opz['open'] = opz["Opzetstuk Noord (°)"].apply(lambda x: 1 if x < 80 else 0)
@@ -54,13 +59,18 @@ class PrepareDataset:
         return beweegt
 
     def determine_moments(self, beweegt):
-        """ Bepalen van moment van openen en moment van sluiten. Nodig 
+        """ Bepalen van moment van openen en moment van sluiten.
         """
         momenten=beweegt.copy()
         momenten['timedelta'] = momenten['datetime'].diff()
         momenten.fillna(pd.Timedelta(seconds=0), inplace=True)
         momenten['timedelta_secs'] = momenten['timedelta'].dt.total_seconds()
         return momenten
+    
+    def _get_start_and_enddate(self, df):
+        start = df.datetime.min()
+        end = df.datetime.max()
+        return [start, end]
         
     def filter_meteo_data(self, startdate, enddate):
         """Filters the meteodataset to the timewindow determined by startdate and enddate
