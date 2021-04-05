@@ -9,7 +9,14 @@ class CleaningData:
         location: str, (relative) path to the datafolder
         selection: str, part of the datafile that indicates the month
         """
-        self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
+        if selection.lower() == "all":
+            self.raw_data = pd.DataFrame()
+            for file in os.listdir(location):
+                if file.endswith("-opzetstukken.csv"):
+                    data = pd.read_csv(f"{location}{file}",sep=";")
+                    self.raw_data = self.raw_data.append(data)
+        else:
+            self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
     
     def preprocessing_pipeline(self):
         opz = self.format_data(self.raw_data)
