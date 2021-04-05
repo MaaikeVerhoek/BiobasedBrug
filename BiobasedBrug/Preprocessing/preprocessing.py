@@ -35,7 +35,7 @@ class PrepareDataset:
         meteo = self.filter_meteo_data(start, end)
         meteo = self.clean_meteo_data(meteo)
         momenten = self.determine_moments(cld)
-        return {'momenten': momenten, 'meteo': meteo, 'sensoren': self.sensor_data}
+        return {'momenten': momenten, 'meteo': meteo, 'sensoren': self.sensor_data}#moet nog wat gebeuren voor de sensordata
         
     def format_data(self, raw_data):
         """ Takes the raw data and changes it to the right formats
