@@ -10,6 +10,7 @@ class PrepareDataset:
         location: str, (relative) path to the datafolder
         selection: str, part of the datafile that indicates the month
         """
+        #Load opzetstukken data
         if selection.lower() == "all":
             self.raw_data = pd.DataFrame()
             for file in os.listdir(location):
@@ -18,8 +19,14 @@ class PrepareDataset:
                     self.raw_data = self.raw_data.append(data)
         else:
             self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
-            
+        #Load meteo data    
         self.all_meteo_data = pd.read_csv(f"{location}{METEO}",sep=";",header=[0],skiprows=[1], dtype='unicode')
+        #Load sensor data
+        self.sensor_data = pd.DataFrame()
+        for file in os.listdir(SENSORPATH):
+            data = pd.read_csv(f"{SENSORPATH}{file}",sep=";")
+            data = self._clean_sensors(data)
+            self.sensor_data = self.sensor_data.append(data)            
     
     def preprocessing_pipeline(self):
         opz = self.format_data(self.raw_data)
@@ -28,7 +35,7 @@ class PrepareDataset:
         meteo = self.filter_meteo_data(start, end)
         meteo = self.clean_meteo_data(meteo)
         momenten = self.determine_moments(cld)
-        return {'momenten': momenten, 'meteo': meteo}
+        return {'momenten': momenten, 'meteo': meteo, 'sensoren': self.sensor_data}
         
     def format_data(self, raw_data):
         """ Takes the raw data and changes it to the right formats
@@ -115,7 +122,22 @@ class PrepareDataset:
         df=df.reset_index()
         df['dag']=df['datetime'].dt.day
         return df
-
+        
+    def _clean_sensors(self,file_data):
+        sensor_namen = data['Sensor naam'].unique()
+        metadata = pd.DataFrame()
+        for sensor_naam in sensor_namen:
+            rows = file_data[file_data['Sensor naam']==sensor_naam]
+            row = rows.iloc[0]
+            rowdf = pd.DataFrame(row).transpose()
+            rowdf['min-date'] = rows['Datum-tijd'].min()
+            rowdf['max-date'] = rows['Datum-tijd'].max()
+            rowdf['file'] = file
+            rowdf['#rows'] = rows.shape[0]
+            rowdf.drop(['Datum-tijd','Waarde'],axis=1, inplace=True)
+            metadata = pd.concat([metadata, rowdf])
+        file_data.drop(['Unit','Brugdeel','Kopafstand','Element','Primaire lijn'],axis=1, inplace=True)
+        return file_data
 
 
 
