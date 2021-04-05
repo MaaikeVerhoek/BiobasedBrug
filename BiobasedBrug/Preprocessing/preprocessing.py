@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from config import *
 
-class CleaningData:
+class PrepareDataset:
     def __init__(self, location=PATH, selection='202006'):
         """ Loads the data
         location: str, (relative) path to the datafolder
@@ -17,9 +17,12 @@ class CleaningData:
                     self.raw_data = self.raw_data.append(data)
         else:
             self.raw_data = pd.read_csv(f"{location}{selection}-opzetstukken.csv",sep=";")
+            
+        self.all_meteo_data=pd.read_csv(f"{location}{METEO}",sep=";",header=[0],skiprows=[1])
     
     def preprocessing_pipeline(self):
         opz = self.format_data(self.raw_data)
+        
         cld = self.clean_data(opz)
         return cld
         
@@ -59,6 +62,53 @@ class CleaningData:
         momenten['timedelta_secs'] = momenten['timedelta'].dt.total_seconds()
         return momenten
         
+    def filter_meteo_data(self, startdate, enddate):
+        """Filters the meteodataset to the timewindow determined by startdate and enddate
+        Parameters:
+        -----------
+        startdate: str, date from where to filter the meteo data
+        enddate: str, date to where to filter the meteo data
+        
+        Returns:
+        --------
+        meteodata: pd.DataFrame, the filtered meteo data
+        """
+        self.all_meteo_data.columns.values[0]='Datum-tijd'
+        self.all_meteo_data['datetime']=pd.to_datetime(self.all_meteo_data['Datum-tijd'], format='%Y-%m-%dT%H:%M:%SZ')
+        self.all_meteo_data.drop(['Datum-tijd'],axis=1, inplace=True)
+        mask = (self.all_meteo_data['datetime'] > startdate) & (self.all_meteo_data['datetime'] <= enddate)
+        meteodata = self.all_meteo_data.loc[mask].copy()
+        meteodata.set_index('datetime',inplace=True)
+        return meteodata
+    
+    def clean_meteo_data(self, df):
+        """Cleans the meteodataset by imputing missing data, transforming to the right format and resampling to 10 minutes
+        
+        Parameters:
+        -----------
+        df: pd.DataFrame, the filtered meteo data
+        
+        Returns:
+        --------
+        df: pd.DataFrame, cleaned and resampled dataset
+        """
+        for col in df.columns:
+            df[col] = df[col].str.replace(',', '.').astype("float")
+#         df_nan = df[df.isna().any(axis=1)]
+#         print("Check Nans:",df_nan.shape[0])
+        df=df.fillna(method='ffill')
+#         df_nan = df[df.isna().any(axis=1)]
+#         print("Check Nans:",df_nan.shape[0])
+#         print("shape selected sensor data:",df.shape)
+        df=df.dropna()
+        df=df.resample("10T").mean()
+        df=df.reset_index()
+        df['dag']=df['datetime'].dt.day
+        return df
+
+
+
+
         # Uiteindelijke output is een dataframe met daarin een regel per combinatie open en closed. Daarin staat een kolom open tijd, sluit tijd, tijd ertussen
         
         # Dan moet er nog een stuk komen (misschien andere class) met inladen strain. daarvan nodig: strain op moment van openen, strain op moment van sluiten, min (beneden hangende sensor)/max (Hooghangende sensor) strain in de periode tussen openen en sluiten.
